@@ -730,7 +730,7 @@ public class Query<T extends Model> {
             && property.getType() != PropertyType.BINARY
             && !property.isTransient()) {
           String alias = joinHelper.joinName(name);
-          if (alias != null) {
+          if (alias != null && property.getType() != PropertyType.ONE_TO_MANY) {
             selects.add(alias);
             this.names.add(name);
           } else {
@@ -852,10 +852,24 @@ public class Query<T extends Model> {
 
     @SuppressWarnings("all")
     private Map<String, List> fetchCollections(Object id) {
+      Collection<Model> items = null;
       Map<String, List> result = Maps.newHashMap();
       Object self = JPA.em().find(beanClass, id);
       for (String name : collections) {
-        Collection<Model> items = (Collection<Model>) mapper.get(self, name);
+		String names[] = name.split("\\.");
+		if(names.length > 1) {
+	    	Class<T> className = null;
+	    	for(int i=0;i<names.length-1;i++) {
+	    		Model model = (Model)mapper.get(self, names[i]);
+	    		className = (Class<T>) model.getClass();
+	    		self = model;
+	    	}
+	    	String name2 = names[names.length - 1];
+	    	Mapper mapper = Mapper.of(className);
+	        items = (Collection<Model>) mapper.get(self, name2);
+		}
+		if(items == null)
+	    items = (Collection<Model>) mapper.get(self, name);
         if (items != null) {
           List<Object> all = Lists.newArrayList();
           for (Model obj : items) {
