@@ -854,19 +854,24 @@ public class Query<T extends Model> {
     private Map<String, List> fetchCollections(Object id) {
       Map<String, List> result = Maps.newHashMap();
       Object self = JPA.em().find(beanClass, id);
+      Outer:
       for (String name : collections) {
         Collection<Model> items = null;
         String names[] = name.split("\\.");
         if (names.length > 1) {
-          Class<T> className = null;
-          Model model = null;
+          Class<T> className = beanClass;
+          Mapper dottedMapper = mapper;
+          Model model = (Model) self;
           for (int i = 0; i < names.length - 1; i++) {
-            model = (Model) mapper.get(self, names[i]);
+            model = (Model) dottedMapper.get(model, names[i]);
+            if (model == null) {
+              result.put(name,Lists.newArrayList());
+              continue Outer;
+            }
             className = (Class<T>) model.getClass();
+            dottedMapper = Mapper.of(className);
           }
-          String lastField = names[names.length - 1];
-          Mapper mapper1 = Mapper.of(className);
-          items = (Collection<Model>) mapper1.get(model, lastField);
+          items = (Collection<Model>) dottedMapper.get(model, names[names.length - 1]);
         }
         if (items == null) items = (Collection<Model>) mapper.get(self, name);
         if (items != null) {
